@@ -25,7 +25,7 @@ func main() {
   resp, _ := r.Do(req)
   defer resp.Body.Close()
 
-  b, _ := ioutil.ReadAll
+  b, _ := ioutil.ReadAll(resp.Body)
 
   fmt.Println(string(b))
 }
