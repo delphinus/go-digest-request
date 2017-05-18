@@ -1,0 +1,23 @@
+machine:
+  environment:
+    IMPORT_PATH: github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+    REPO_PATH: ${GOPATH%%:*}/src/$IMPORT_PATH
+    TEST_FILE: /tmp/test
+    COVERAGE: /tmp/coverage.out
+
+dependencies:
+  pre:
+    - go get github.com/mattn/goveralls
+    - go get github.com/jstemmer/go-junit-report
+    - mkdir -p $REPO_PATH
+    - rsync -azC --delete ./ $REPO_PATH/
+  override:
+    - cd $REPO_PATH && make install
+
+test:
+  override:
+    - cd $REPO_PATH && set -o pipefail && go test -v -cover -race -coverprofile=$COVERAGE | tee -a $TEST_FILE
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/golang
+    - cat $TEST_FILE | go-junit-report > $CIRCLE_TEST_REPORTS/golang/junit.xml
+    - goveralls -coverprofile=$COVERAGE -service=circle-ci -repotoken=$COVERALLS_TOKEN
