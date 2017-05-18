@@ -1,0 +1,11 @@
+package: github.com/delphinus/go-digest-request
+import:
+- package: github.com/delphinus/random-string
+- package: github.com/pkg/errors
+  version: ^0.8.0
+- package: golang.org/x/net
+  subpackages:
+  - context
+testImport:
+- package: github.com/abbot/go-http-auth
+  version: ^0.3.0

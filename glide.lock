@@ -1,0 +1,14 @@
+hash: c756e0446e6ff9db73325a260ade436249faa4d586daaeb1013fa69db355ef39
+updated: 2017-05-18T16:31:12.180296639+09:00
+imports:
+- name: github.com/delphinus/random-string
+  version: 3a848976dd952cb4263f7aa61a6886d16014151b
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: golang.org/x/net
+  version: da118f7b8e5954f39d0d2130ab35d4bf0e3cb344
+  subpackages:
+  - context
+testImports:
+- name: github.com/abbot/go-http-auth
+  version: efc9484eee77263a11f158ef4f30fcc30298a942
