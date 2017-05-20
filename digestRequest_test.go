@@ -137,3 +137,15 @@ func TestNormalRequestWithInvalidHeaders(t *testing.T) {
 		t.Errorf("different error: %v", err)
 	}
 }
+
+func TestInvalidRequests(t *testing.T) {
+	req, err := http.NewRequest("GET", "", nil) // invalid request
+	if err != nil {
+		t.Fatalf("error in NewRequest: %v", err)
+	}
+
+	_, err = New(context.Background(), "", "").Do(req)
+	if err == nil {
+		t.Fatalf("no error")
+	}
+}
