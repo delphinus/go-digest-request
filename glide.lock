@@ -1,5 +1,5 @@
-hash: c756e0446e6ff9db73325a260ade436249faa4d586daaeb1013fa69db355ef39
-updated: 2017-05-18T16:31:12.180296639+09:00
+hash: b6f4052702876c99020bbfbc9faf6838976254b53627483a132265b54cf040a7
+updated: 2017-05-20T14:46:18.013330986+09:00
 imports:
 - name: github.com/delphinus/random-string
   version: 3a848976dd952cb4263f7aa61a6886d16014151b
@@ -11,4 +11,9 @@ imports:
   - context
 testImports:
 - name: github.com/abbot/go-http-auth
-  version: efc9484eee77263a11f158ef4f30fcc30298a942
+  version: d45c47bedec736d172957bd394786b76626fa8ac
+- name: golang.org/x/crypto
+  version: c7af5bf2638a1164f2eb5467c39c6cffbd13a02e
+  subpackages:
+  - bcrypt
+  - blowfish
