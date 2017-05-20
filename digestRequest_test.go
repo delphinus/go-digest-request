@@ -32,11 +32,14 @@ func startServer(ctx context.Context) *httptest.Server {
 	return ts
 }
 
-func TestDigestRequest(t *testing.T) {
+func testRequest(t *testing.T, setClient func(ctx context.Context) context.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ctx = ContextWithClient(ctx, http.DefaultClient)
+	if setClient != nil {
+		ctx = setClient(ctx)
+	}
+
 	ts := startServer(ctx)
 
 	r := New(ctx, "john", "hello")
@@ -64,4 +67,14 @@ func TestDigestRequest(t *testing.T) {
 	if string(b) != "OK" {
 		t.Errorf("invalid body: %s", string(b))
 	}
+}
+
+func TestDigestRequestWithClient(t *testing.T) {
+	testRequest(t, func(ctx context.Context) context.Context {
+		return ContextWithClient(ctx, http.DefaultClient)
+	})
+}
+
+func TestDigestRequestWithoutClient(t *testing.T) {
+	testRequest(t, nil)
 }
