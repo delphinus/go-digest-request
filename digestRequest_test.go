@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/abbot/go-http-auth"
@@ -27,8 +28,27 @@ func startDigestServer(ctx context.Context) *httptest.Server {
 }
 
 func startNormalServer(ctx context.Context) *httptest.Server {
-	return startServer(ctx, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return startNormalServerWithWriter(ctx, func(w http.ResponseWriter) {
 		fmt.Fprintf(w, "OK")
+	})
+}
+
+func startNormalServerWithUnauthorizedError(ctx context.Context) *httptest.Server {
+	return startNormalServerWithWriter(ctx, func(w http.ResponseWriter) {
+		http.Error(w, "OK", http.StatusUnauthorized)
+	})
+}
+
+func startNormalServerWithInvalidHeaders(ctx context.Context) *httptest.Server {
+	return startNormalServerWithWriter(ctx, func(w http.ResponseWriter) {
+		w.Header().Set(wwwAuthenticate, "hoge")
+		http.Error(w, "OK", http.StatusUnauthorized)
+	})
+}
+
+func startNormalServerWithWriter(ctx context.Context, writer func(w http.ResponseWriter)) *httptest.Server {
+	return startServer(ctx, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writer(w)
 	}))
 }
 
@@ -101,5 +121,19 @@ func TestDigestRequestWithoutClient(t *testing.T) {
 func TestNormalRequest(t *testing.T) {
 	if err := testRequest(startNormalServer, nil); err != nil {
 		t.Errorf("error in testRequest: %v", err)
+	}
+}
+
+func TestNormalRequestWithUnauthorizedError(t *testing.T) {
+	err := testRequest(startNormalServerWithUnauthorizedError, nil)
+	if !strings.Contains(err.Error(), "headers do not have Www-Authenticate") {
+		t.Errorf("different error: %v", err)
+	}
+}
+
+func TestNormalRequestWithInvalidHeaders(t *testing.T) {
+	err := testRequest(startNormalServerWithInvalidHeaders, nil)
+	if !strings.Contains(err.Error(), "header is invalid") {
+		t.Errorf("different error: %v", err)
 	}
 }
