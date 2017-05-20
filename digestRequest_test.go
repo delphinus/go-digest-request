@@ -11,28 +11,39 @@ import (
 	"golang.org/x/net/context"
 )
 
-// startServer is written with referring to
+// startDigestServer is written with referring to
 // https://github.com/abbot/go-http-auth/blob/master/examples/digest.go
-func startServer(ctx context.Context) *httptest.Server {
+func startDigestServer(ctx context.Context) *httptest.Server {
 	a := auth.NewDigestAuthenticator("example.com", func(user, realm string) string {
 		if user == "john" {
 			return "b98e16cbc3d01734b264adba7baa3bf9" // password is "hello"
 		}
 		return ""
 	})
-	ts := httptest.NewServer(a.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	return startServer(ctx, a.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
 		fmt.Fprintf(w, "OK")
 	}))
+}
 
+func startNormalServer(ctx context.Context) *httptest.Server {
+	return startServer(ctx, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
+	}))
+}
+
+func startServer(ctx context.Context, h http.Handler) *httptest.Server {
+	ts := httptest.NewServer(h)
 	go func() {
 		<-ctx.Done()
 		ts.Close()
 	}()
-
 	return ts
 }
 
-func testRequest(t *testing.T, setClient func(ctx context.Context) context.Context) {
+type contexter func(context.Context) context.Context
+type serverer func(context.Context) *httptest.Server
+
+func testRequest(t *testing.T, server serverer, setClient contexter) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -40,7 +51,7 @@ func testRequest(t *testing.T, setClient func(ctx context.Context) context.Conte
 		ctx = setClient(ctx)
 	}
 
-	ts := startServer(ctx)
+	ts := server(ctx)
 
 	r := New(ctx, "john", "hello")
 
@@ -70,11 +81,15 @@ func testRequest(t *testing.T, setClient func(ctx context.Context) context.Conte
 }
 
 func TestDigestRequestWithClient(t *testing.T) {
-	testRequest(t, func(ctx context.Context) context.Context {
+	testRequest(t, startDigestServer, func(ctx context.Context) context.Context {
 		return ContextWithClient(ctx, http.DefaultClient)
 	})
 }
 
 func TestDigestRequestWithoutClient(t *testing.T) {
-	testRequest(t, nil)
+	testRequest(t, startDigestServer, nil)
+}
+
+func TestNormalRequest(t *testing.T) {
+	testRequest(t, startNormalServer, nil)
 }
