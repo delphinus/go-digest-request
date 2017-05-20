@@ -8,4 +8,4 @@ import:
   - context
 testImport:
 - package: github.com/abbot/go-http-auth
-  version: ^0.3.0
+  version: d45c47bedec736d172957bd394786b76626fa8ac
