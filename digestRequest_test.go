@@ -13,66 +13,17 @@ import (
 	"golang.org/x/net/context"
 )
 
-// startDigestServer is written with referring to
-// https://github.com/abbot/go-http-auth/blob/master/examples/digest.go
-func startDigestServer(ctx context.Context) *httptest.Server {
-	a := auth.NewDigestAuthenticator("example.com", func(user, realm string) string {
-		if user == "john" {
-			return "b98e16cbc3d01734b264adba7baa3bf9" // password is "hello"
-		}
-		return ""
-	})
-	return startServer(ctx, a.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
-		fmt.Fprintf(w, "OK")
-	}))
-}
-
-func startNormalServer(ctx context.Context) *httptest.Server {
-	return startNormalServerWithWriter(ctx, func(w http.ResponseWriter) {
-		fmt.Fprintf(w, "OK")
-	})
-}
-
-func startNormalServerWithUnauthorizedError(ctx context.Context) *httptest.Server {
-	return startNormalServerWithWriter(ctx, func(w http.ResponseWriter) {
-		http.Error(w, "OK", http.StatusUnauthorized)
-	})
-}
-
-func startNormalServerWithInvalidHeaders(ctx context.Context) *httptest.Server {
-	return startNormalServerWithWriter(ctx, func(w http.ResponseWriter) {
-		w.Header().Set(wwwAuthenticate, "hoge")
-		http.Error(w, "OK", http.StatusUnauthorized)
-	})
-}
-
-func startNormalServerWithWriter(ctx context.Context, writer func(w http.ResponseWriter)) *httptest.Server {
-	return startServer(ctx, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writer(w)
-	}))
-}
-
-func startServer(ctx context.Context, h http.Handler) *httptest.Server {
-	ts := httptest.NewServer(h)
-	go func() {
-		<-ctx.Done()
-		ts.Close()
-	}()
-	return ts
-}
-
 type contexter func(context.Context) context.Context
-type serverer func(context.Context) *httptest.Server
 
-func testRequest(server serverer, setClient contexter) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func testRequest(h http.HandlerFunc, setClient contexter) error {
+	ctx := context.Background()
 
 	if setClient != nil {
 		ctx = setClient(ctx)
 	}
 
-	ts := server(ctx)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
 
 	r := New(ctx, "john", "hello")
 
@@ -103,8 +54,22 @@ func testRequest(server serverer, setClient contexter) error {
 	return nil
 }
 
+// digestHandler is written with referring to
+// https://github.com/abbot/go-http-auth/blob/master/examples/digest.go
+var digestHandler = func() http.HandlerFunc {
+	a := auth.NewDigestAuthenticator("example.com", func(user, realm string) string {
+		if user == "john" {
+			return "b98e16cbc3d01734b264adba7baa3bf9" // password is "hello"
+		}
+		return ""
+	})
+	return a.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+		fmt.Fprintf(w, "OK")
+	})
+}()
+
 func TestDigestRequestWithClient(t *testing.T) {
-	err := testRequest(startDigestServer, func(ctx context.Context) context.Context {
+	err := testRequest(digestHandler, func(ctx context.Context) context.Context {
 		return ContextWithClient(ctx, http.DefaultClient)
 	})
 	if err != nil {
@@ -113,26 +78,43 @@ func TestDigestRequestWithClient(t *testing.T) {
 }
 
 func TestDigestRequestWithoutClient(t *testing.T) {
-	if err := testRequest(startDigestServer, nil); err != nil {
+	if err := testRequest(digestHandler, nil); err != nil {
 		t.Errorf("error in testRequest: %v", err)
 	}
 }
 
+func testNormalRequest(writer func(w http.ResponseWriter)) error {
+	return testRequest(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writer(w)
+		}),
+		nil,
+	)
+}
+
 func TestNormalRequest(t *testing.T) {
-	if err := testRequest(startNormalServer, nil); err != nil {
+	err := testNormalRequest(func(w http.ResponseWriter) {
+		fmt.Fprintf(w, "OK")
+	})
+	if err != nil {
 		t.Errorf("error in testRequest: %v", err)
 	}
 }
 
 func TestNormalRequestWithUnauthorizedError(t *testing.T) {
-	err := testRequest(startNormalServerWithUnauthorizedError, nil)
+	err := testNormalRequest(func(w http.ResponseWriter) {
+		http.Error(w, "OK", http.StatusUnauthorized)
+	})
 	if !strings.Contains(err.Error(), "headers do not have Www-Authenticate") {
 		t.Errorf("different error: %v", err)
 	}
 }
 
 func TestNormalRequestWithInvalidHeaders(t *testing.T) {
-	err := testRequest(startNormalServerWithInvalidHeaders, nil)
+	err := testNormalRequest(func(w http.ResponseWriter) {
+		w.Header().Set(wwwAuthenticate, "hoge")
+		http.Error(w, "OK", http.StatusUnauthorized)
+	})
 	if !strings.Contains(err.Error(), "header is invalid") {
 		t.Errorf("different error: %v", err)
 	}
