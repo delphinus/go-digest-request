@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/abbot/go-http-auth"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -43,7 +44,7 @@ func startServer(ctx context.Context, h http.Handler) *httptest.Server {
 type contexter func(context.Context) context.Context
 type serverer func(context.Context) *httptest.Server
 
-func testRequest(t *testing.T, server serverer, setClient contexter) {
+func testRequest(server serverer, setClient contexter) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -57,39 +58,48 @@ func testRequest(t *testing.T, server serverer, setClient contexter) {
 
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
-		t.Errorf("error in NewRequest: %v", err)
+		return errors.Wrap(err, "error in NewRequest")
 	}
 
 	resp, err := r.Do(req)
 	if err != nil {
-		t.Errorf("error in Do: %v", err)
+		return errors.Wrap(err, "error in Do")
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("error status code: %s", resp.Status)
+		return errors.Errorf("error status code: %s", resp.Status)
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		t.Errorf("error in ReadAll: %v", err)
+		return errors.Wrap(err, "error in ReadAll")
 	}
 
 	if string(b) != "OK" {
-		t.Errorf("invalid body: %s", string(b))
+		return errors.Errorf("invalid body: %s", string(b))
 	}
+
+	return nil
 }
 
 func TestDigestRequestWithClient(t *testing.T) {
-	testRequest(t, startDigestServer, func(ctx context.Context) context.Context {
+	err := testRequest(startDigestServer, func(ctx context.Context) context.Context {
 		return ContextWithClient(ctx, http.DefaultClient)
 	})
+	if err != nil {
+		t.Errorf("error in testRequest: %v", err)
+	}
 }
 
 func TestDigestRequestWithoutClient(t *testing.T) {
-	testRequest(t, startDigestServer, nil)
+	if err := testRequest(startDigestServer, nil); err != nil {
+		t.Errorf("error in testRequest: %v", err)
+	}
 }
 
 func TestNormalRequest(t *testing.T) {
-	testRequest(t, startNormalServer, nil)
+	if err := testRequest(startNormalServer, nil); err != nil {
+		t.Errorf("error in testRequest: %v", err)
+	}
 }
