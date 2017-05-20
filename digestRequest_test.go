@@ -13,9 +13,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type contexter func(context.Context) context.Context
-
-func testRequest(h http.HandlerFunc, setClient contexter) error {
+func testRequest(h http.HandlerFunc, setClient func(context.Context) context.Context) error {
 	ctx := context.Background()
 
 	if setClient != nil {
