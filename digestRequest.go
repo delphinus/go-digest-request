@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/delphinus/random-string"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -70,7 +69,7 @@ func New(ctx context.Context, username, password string) *DigestRequest {
 func (r *DigestRequest) Do(req *http.Request) (*http.Response, error) {
 	parts, err := r.makeParts(req)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	if parts != nil {
@@ -84,7 +83,7 @@ func (r *DigestRequest) makeParts(req *http.Request) (map[string]string, error) 
 	authReq, err := http.NewRequest(req.Method, req.URL.String(), nil)
 	resp, err := r.client.Do(authReq)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -93,7 +92,7 @@ func (r *DigestRequest) makeParts(req *http.Request) (map[string]string, error) 
 	}
 
 	if len(resp.Header[wwwAuthenticate]) == 0 {
-		return nil, errors.Errorf("headers do not have %s", wwwAuthenticate)
+		return nil, fmt.Errorf("headers do not have %s", wwwAuthenticate)
 	}
 
 	headers := strings.Split(resp.Header[wwwAuthenticate][0], ",")
@@ -107,7 +106,7 @@ func (r *DigestRequest) makeParts(req *http.Request) (map[string]string, error) 
 	}
 
 	if len(parts) != len(wanted) {
-		return nil, errors.Errorf("header is invalid: %+v", parts)
+		return nil, fmt.Errorf("header is invalid: %+v", parts)
 	}
 
 	return parts, nil

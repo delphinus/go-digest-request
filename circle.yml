@@ -11,8 +11,6 @@ dependencies:
     - go get github.com/jstemmer/go-junit-report
     - mkdir -p $REPO_PATH
     - rsync -azC --delete ./ $REPO_PATH/
-  override:
-    - cd $REPO_PATH && make install
 
 test:
   override:
