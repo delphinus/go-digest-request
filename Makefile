@@ -15,7 +15,3 @@ test: ## Run tests only
 test-coverage: ## Run tests and show coverage in browser
 	go test -v -coverprofile=$(COVERAGE) -covermode=count
 	go tool cover -html=$(COVERAGE)
-
-install: ## Install packages for dependencies
-	go get github.com/Masterminds/glide
-	glide install
