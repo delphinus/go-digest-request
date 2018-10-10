@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/delphinus/random-string"
@@ -108,7 +109,7 @@ func (r *DigestRequest) makeParts(req *http.Request) (map[string]string, error) 
 	}
 
 	if len(parts) != len(wanted) {
-		return nil, fmt.Errorf("header is invalid: %+v", parts)
+		fmt.Fprintf(os.Stderr, "header is invalid: %+v", parts)
 	}
 
 	return parts, nil
