@@ -99,8 +99,10 @@ func (r *DigestRequest) makeParts(req *http.Request) (map[string]string, error) 
 	parts := make(map[string]string, len(wanted))
 	for _, r := range headers {
 		for _, w := range wanted {
-			if strings.Contains(r, w) {
+			if strings.Contains(r, w) && strings.Contains(r, `"`) {
 				parts[w] = strings.Split(r, `"`)[1]
+			} else if strings.Contains(r, w) && strings.Contains(r, "=") {
+				parts[w] = strings.Split(r, `=`)[1]
 			}
 		}
 	}
@@ -137,7 +139,7 @@ func (r *DigestRequest) makeAuthorization(req *http.Request, parts map[string]st
 		ha2,
 	})
 	return fmt.Sprintf(
-		`Digest username="%s", realm="%s", nonce="%s", uri="%s", algorithm=%s, qop=%s, nc=%s, cnonce="%s", response="%s", opaque="%s"`,
+		`Digest username="%s", realm="%s", nonce="%s", uri="%s", algorithm="%s", qop=%s, nc=%s, cnonce="%s", response="%s", opaque="%s"`,
 		r.username,
 		parts[realm],
 		parts[nonce],
