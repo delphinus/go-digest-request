@@ -53,7 +53,7 @@ const qop = "qop"
 const realm = "realm"
 const wwwAuthenticate = "Www-Authenticate"
 
-var wanted = []string{algorithm, nonce, opaque, qop, realm}
+var wanted = []string{algorithm, nonce, opaque, realm}
 
 // New makes a DigestRequest instance
 func New(ctx context.Context, username, password string) *DigestRequest {
@@ -99,8 +99,10 @@ func (r *DigestRequest) makeParts(req *http.Request) (map[string]string, error) 
 	parts := make(map[string]string, len(wanted))
 	for _, r := range headers {
 		for _, w := range wanted {
-			if strings.Contains(r, w) {
+			if strings.Contains(r, w) && strings.Contains(r, `"`) {
 				parts[w] = strings.Split(r, `"`)[1]
+			} else if strings.Contains(r, w) && strings.Contains(r, "=") {
+				parts[w] = strings.Split(r, `=`)[1]
 			}
 		}
 	}
@@ -126,27 +128,46 @@ func (r *DigestRequest) getNonceCount() string {
 func (r *DigestRequest) makeAuthorization(req *http.Request, parts map[string]string) string {
 	ha1 := getMD5([]string{r.username, parts[realm], r.password})
 	ha2 := getMD5([]string{req.Method, req.URL.String()})
-	cnonce := randomString.Generate(16)
-	nc := r.getNonceCount()
-	response := getMD5([]string{
-		ha1,
-		parts[nonce],
-		nc,
-		cnonce,
-		parts[qop],
-		ha2,
-	})
-	return fmt.Sprintf(
-		`Digest username="%s", realm="%s", nonce="%s", uri="%s", algorithm=%s, qop=%s, nc=%s, cnonce="%s", response="%s", opaque="%s"`,
-		r.username,
-		parts[realm],
-		parts[nonce],
-		req.URL.String(),
-		parts[algorithm],
-		parts[qop],
-		nc,
-		cnonce,
-		response,
-		parts[opaque],
-	)
+	_, found := parts[qop]
+	if !found {
+		response := getMD5([]string{
+			ha1,
+			parts[nonce],
+			ha2,
+		})
+		return fmt.Sprintf(
+			`Digest username="%s", realm="%s", nonce="%s", uri="%s", algorithm="%s", response="%s", opaque="%s"`,
+			r.username,
+			parts[realm],
+			parts[nonce],
+			req.URL.String(),
+			parts[algorithm],
+			response,
+			parts[opaque],
+		)
+	} else {
+		cnonce := randomString.Generate(16)
+		nc := r.getNonceCount()
+		response := getMD5([]string{
+			ha1,
+			parts[nonce],
+			nc,
+			cnonce,
+			parts[qop],
+			ha2,
+		})
+		return fmt.Sprintf(
+			`Digest username="%s", realm="%s", nonce="%s", uri="%s", algorithm="%s", qop=%s, nc=%s, cnonce="%s", response="%s", opaque="%s"`,
+			r.username,
+			parts[realm],
+			parts[nonce],
+			req.URL.String(),
+			parts[algorithm],
+			parts[qop],
+			nc,
+			cnonce,
+			response,
+			parts[opaque],
+		)
+	}
 }
